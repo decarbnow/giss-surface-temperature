@@ -4,19 +4,17 @@
 rm(list=ls())
 source("./shared.r", chdir=TRUE, encoding = "UTF-8")
 loadPackages(c("raster", 
-               "leaflet", 
                "rgdal", 
                "smoothr", 
                "units", 
                "lwgeom", 
                "rgeos", 
-               "sf",
-               "btb"))
+               "sf"))
+# ----------------------------------------------
 
-month = "10"
-year = 2020
-
-
+# ----------------------------------------------
+# SETUP
+# ----------------------------------------------
 simplify_tol = 0.02
 border_smooth = 3
 
@@ -24,8 +22,12 @@ cuts = c(-4.1, -4.0, -2, -1, -0.5, -0.2,
          0.2, 0.5, 1.0, 2.0, 4.0, 9999)
 crumps = c(10000, 5000, 4000, 3000, 2000, 1800, 1600, 200, 200, 200, 200, 200)
 f_holes = c(3001, 3000, 2000, 1000, 1000, 1000, 1000, 1000, NA, NA, NA, NA)
-path = file.path(file.path("tmp", "data"))
+# ----------------------------------------------
 
+# ----------------------------------------------
+# CREATE GEOJSONS
+# ----------------------------------------------
+path = file.path(file.path("tmp", "data"))
 
 files = list.files(path)
 
@@ -84,5 +86,4 @@ for(f in files){
     
     writeOGR(final_poly, file.path("tmp", fileName), layer="dfr_pg", driver="GeoJSON", overwrite_layer = TRUE)
 }
-
-
+# ----------------------------------------------
