@@ -11,8 +11,9 @@ loadPackages(c("leaflet",
 # ----------------------------------------------
 # SETUP
 # ----------------------------------------------
-list.files("tmp")
-jsonFile = "October2020_1951-1980_worked.geojson"
+filesList = list.files("tmp", pattern = "geojson")
+jsonFile = filesList[3]
+jsonFile
 # ----------------------------------------------
 
 # ----------------------------------------------

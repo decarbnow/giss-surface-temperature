@@ -24,10 +24,12 @@ initCuts = c(-20, -10, -7, -5.0, -4.0,
              0.5, 1.0, 2.0, 4.0, 5.0, 
              7, 10, 20)
 
-initCrumps = c(10000, 10000, 10000, 10000, 10000,
-               10000, 10000, 5000, 4000, 3000, 
-               2000, 1800, 1600, 1300, 200, 
-               200, 200, 200)
+# initCrumps = c(10000, 10000, 10000, 10000, 10000,
+#                10000, 10000, 5000, 4000, 3000, 
+#                2000, 1800, 1600, 1300, 200, 
+#                200, 200, 200)
+
+initCrumps = rep(500, length(initCuts))
 
 initFHoles = c(3001, 3001, 3001, 3001, 3001,
                3000, 2000, 1000, 1000, 1000, 
@@ -110,19 +112,17 @@ for(f in files){
     }
     
     final_poly = do.call( rbind, polys_sf )
-
-
-    for(v in rev(final_poly[-1,]$value)){
-        for(vl in final_poly[final_poly$value < v, ]$value){
-            diff = st_erase(final_poly[final_poly$value == vl,]$geometry,
-                            final_poly[final_poly$value == v,]$geometry)
-            
-            if(length(diff) == 0){
-                print("No rows left. Skipping")
-                next()
-            }
-            final_poly[final_poly$value == vl,]$geometry = diff
+    
+    done = NULL
+    for(v in final_poly$value){
+        done = c(done, v)
+        diff = st_difference(final_poly[final_poly$value == v,]$geometry,
+                             st_union(final_poly[!(final_poly$value %in% done),]$geometry))
+        if(length(diff) == 0){
+            print("No rows left. Skipping")
+            next()
         }
+        final_poly[final_poly$value == v,]$geometry = diff
     }
     
     st_write(final_poly, 
