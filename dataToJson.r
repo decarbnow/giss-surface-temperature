@@ -19,12 +19,14 @@ simplify_tol = 0.02
 border_smooth = 3
 
 # Set ridiculous cuts
-initCuts = c(-20, -10, -7, -5.0, -4.0, -2, -1, -0.5, -0.2,
-             0.2, 0.5, 1.0, 2.0, 4.0, 5.0, 7, 10, 20)
+initCuts = c(-20, -10, -7, -5.0, -4.0, 
+             -2, -1, -0.5, -0.2, 0.2, 
+             0.5, 1.0, 2.0, 4.0, 5.0, 
+             7, 10, 20)
 
 initCrumps = c(10000, 10000, 10000, 10000, 10000,
-               5000, 4000, 3000, 2000, 1800, 
-               1600, 1300, 200, 200, 200, 
+               10000, 10000, 5000, 4000, 3000, 
+               2000, 1800, 1600, 1300, 200, 
                200, 200, 200)
 
 initFHoles = c(3001, 3001, 3001, 3001, 3001,
@@ -47,9 +49,6 @@ path = file.path(file.path("tmp", "data"))
 files = list.files(path)
 
 for(f in files){
-    
-    cuts = initCuts
-    
     meanData = fread(file.path(path, f), skip = 1)
     metaData = fread(file.path(path, f), nrows = 1, header = F)
     meanPeriod = gsub("_", "", metaData$V1)
@@ -60,8 +59,8 @@ for(f in files){
     meanData = meanData[`array(i,j)` != 9999]
     
     meanData[, value := cut(`array(i,j)`, 
-                            breaks = cuts,
-                            labels = cuts[-18],
+                            breaks = initCuts,
+                            labels = initCuts[-18],
                             include.lowest = T)]
     
     meanData = meanData[order(value)]
@@ -73,32 +72,34 @@ for(f in files){
         t = meanData[value >= v, .(lon, lat, value = v)]
         if(nrow(t) == 0){
             rasters[i] = list(NULL)
+            print("Skipping", v)
             next()
         }
             
         tt = rasterFromXYZ(t)  #Convert first two columns as lon-lat and third as value                
         crs(tt) = sp::CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
         print("Drop Crumps")
-        tt = drop_crumbs(rasterToPolygons(tt, dissolve = TRUE),
-                         set_units(crumps[value == v]$crumps, km^2))
-        rasters[as.character(v)] = tt
+        ttr = drop_crumbs(rasterToPolygons(tt, dissolve = TRUE),
+                          set_units(crumps[value == v]$crumps, km^2))
+        # if(is.null(ttr))
+        #     ttr = rasterToPolygons(tt, dissolve = TRUE)
+        
+        rasters[as.character(v)] = ttr
     } 
     
     
     polys = list()
     for (n in names(rasters)) {
         tt = rasters[[n]]
-        if(is.null(tt))
-            next()
             
         print("Fill Holes")
         if(!is.na(f_holes[value == as.numeric(n)]$f_holes))
             tt = fill_holes(tt, set_units(f_holes[value == as.numeric(n)]$f_holes, km^2))
         print("Smooth")
-        tt = smooth(tt, method = "ksmooth", smoothness=border_smooth)
+        tt = smooth(tt, method = "ksmooth", smoothness = border_smooth)
         print("Simplify")
         ttd = data.frame(tt)
-        tt = gSimplify(tt, tol = simplify_tol, topologyPreserve=TRUE)
+        tt = gSimplify(tt, tol = simplify_tol, topologyPreserve = TRUE)
         tt = SpatialPolygonsDataFrame(tt, ttd)
         polys[as.character(n)] = tt
     } 
@@ -110,17 +111,17 @@ for(f in files){
     
     final_poly = do.call( rbind, polys_sf )
 
-    for(v in rev(final_poly$value)){
+
+    for(v in rev(final_poly[-1,]$value)){
         for(vl in final_poly[final_poly$value < v, ]$value){
-            if(length(st_difference(final_poly[final_poly$value == vl,]$geometry,
-                                    final_poly[final_poly$value == v,]$geometry)) == 0){
+            diff = st_erase(final_poly[final_poly$value == vl,]$geometry,
+                            final_poly[final_poly$value == v,]$geometry)
+            
+            if(length(diff) == 0){
                 print("No rows left. Skipping")
                 next()
             }
-                
-            final_poly[final_poly$value == vl,]$geometry = st_difference(final_poly[final_poly$value == vl,]$geometry,
-                                                                         final_poly[final_poly$value == v,]$geometry)
-            
+            final_poly[final_poly$value == vl,]$geometry = diff
         }
     }
     
